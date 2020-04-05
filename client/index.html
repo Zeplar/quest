@@ -30,7 +30,7 @@
         var strokeColor = '';
         var strokes = [];
 
-        var socket = new WebSocket("ws://localhost:3000/ws");
+        var socket = new WebSocket("ws://192.168.1.126:3000/ws");
         var otherColors = {};
         var otherStrokes = {};
 
@@ -122,21 +122,21 @@
                     otherStrokes[message.user.id] = [];
                 break;
                 case MESSAGE_USER_LEFT:
-                    delete otherColors[message.userId];
-                    delete otherStrokes[message.userId];
+                    delete otherColors[message.user.id];
+                    delete otherStrokes[message.user.id];
                     update();
                 break;
                 case MESSAGE_STROKE:
                     if (message.finish) {
-                        otherStrokes[message.userId].push(message.points);
+                        otherStrokes[message.user.id].push(message.points);
                     } else {
-                        var strokes = otherStrokes[message.userId];
+                        var strokes = otherStrokes[message.user.id];
                         strokes[strokes.length - 1] = strokes[strokes.length - 1].concat(message.points);
                     }
                     update();
                 break;
                 case MESSAGE_CLEAR:
-                    otherStrokes[message.userId] = [];
+                    otherStrokes[message.user.id] = [];
                     update();
                 break;
             }

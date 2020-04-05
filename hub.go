@@ -58,7 +58,11 @@ func (hub *Hub) send(message interface{}, client *Client) {
 }
 
 func (hub *Hub) broadcast(message interface{}, ignore *Client) {
-	data, _ := json.Marshal(message)
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for _, c := range hub.clients {
 		if c != ignore {
 			c.outbound <- data
@@ -100,14 +104,9 @@ func (hub *Hub) onDisconnect(client *Client) {
 func (hub *Hub) onMessage(data []byte, client *Client) {
 	var msg message.Message
 	if err := json.Unmarshal(data, &msg); err != nil {
+		log.Println(err)
 		return
 	}
-
-	if msg.Kind == message.KindStroke {
-		msg.User.ID = client.id
-		hub.broadcast(msg, client)
-	} else if msg.Kind == message.KindClear {
-		msg.User.ID = client.id
-		hub.broadcast(msg, client)
-	}
+	msg.User.ID = client.id
+	hub.broadcast(msg, client)
 }
