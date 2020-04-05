@@ -37,16 +37,10 @@ func (client *Client) read() {
 }
 
 func (client *Client) write() {
-	for {
-		select {
-		case data, ok := <-client.outbound:
-			if !ok {
-				client.socket.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-			client.socket.WriteMessage(websocket.TextMessage, data)
-		}
+	for data := range client.outbound {
+		client.socket.WriteMessage(websocket.TextMessage, data)
 	}
+	client.socket.WriteMessage(websocket.CloseMessage, []byte{})
 }
 
 func (client Client) run() {
