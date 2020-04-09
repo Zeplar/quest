@@ -17,11 +17,14 @@
     <input type="color" id="favcolor" name="favcolor" value="#ff0000">
   <div>
     <button id="clearButton">Clear</button>
+    <button id="undoButton">Undo</buton>
   </div>
   <script>
     MESSAGE_CONNECTED = 1;
     MESSAGE_STROKE = 2;
     MESSAGE_CLEAR = 3;
+    MESSAGE_UNDO = 4;
+
     var strokes = [];
     var strokeID = 0;
     var shapeID = 0;
@@ -32,8 +35,8 @@
     function Stroke() {
         this.color = strokeColor;
         this.points = [];
-        this.shapeID = shapeID++;
-        this.strokeID = strokeID++;
+        this.shapeID = ++shapeID;
+        this.strokeID = ++strokeID;
         this.ownerID = ownerID;
     }
     window.onload = function () {
@@ -50,8 +53,8 @@
         }
 
         canvas.onmousedown = function (event) {
+            currentStroke = new Stroke()
             isDrawing = true;
-
             addPoint(event.pageX - this.offsetLeft, event.pageY - this.offsetTop, true);
         };
 
@@ -65,7 +68,6 @@
         canvas.onmouseup = function () {
             isDrawing = false;
             socket.send(JSON.stringify({ kind: MESSAGE_STROKE, stroke: currentStroke }));
-            currentStroke = new Stroke()
         };
 
         canvas.onmouseleave = function () {
@@ -101,6 +103,10 @@
             socket.send(JSON.stringify({ kind: MESSAGE_CLEAR }));
         };
 
+        document.getElementById('undoButton').onclick = function () {
+            socket.send(JSON.stringify({ kind: MESSAGE_UNDO, stroke: {strokeID: strokeID, ownerID: ownerID}}))
+        };
+
         socket.onmessage = function (event) {
             var messages = event.data.split('\n');
             for (var i = 0; i < messages.length; i++) {
@@ -109,17 +115,39 @@
             }
         };
 
+        // remove deletes a stroke from the global array.
+        function remove(s) {
+            for (var i = 0; i < strokes.length; i++) {
+                stroke = strokes[i]
+                if (stroke.ownerID != s.ownerID || stroke.strokeID != s.strokeID ){
+                    continue;
+                }
+                strokes.splice(i, 1);
+                // Adjust local strokeID if we removed one of our own strokes
+                if (s.ownerID == ownerID && s.strokeID == strokeID) {
+                    strokeID--;
+                }
+                return;
+            }
+            console.log("Could not find stroke");
+        }
+
         function onMessage(message) {
             switch (message.kind) {
+                case MESSAGE_CONNECTED:
+                    ownerID = message.stroke.ownerID;
+                break;
                 case MESSAGE_STROKE:
                     strokes.push(message.stroke);
-                    update();
                 break;
                 case MESSAGE_CLEAR:
                     strokes = [];
-                    update();
+                break;
+                case MESSAGE_UNDO:
+                    remove(message.stroke);
                 break;
             }
+            update();
         }
     }
     

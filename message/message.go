@@ -7,6 +7,7 @@ const (
 	KindStroke
 	// KindClear message is sent when a user clears the screen
 	KindClear
+	KindUndo
 )
 
 type Point struct {
@@ -18,11 +19,10 @@ type Stroke struct {
 	Color    string  `json:"color"`
 	OwnerID  int     `json:"ownerID"`
 	StrokeID int     `json:"strokeID"`
-	ShapeID  int     `json:"ShapeID"`
+	ShapeID  int     `json:"shapeID"`
 }
 
 type Message struct {
 	Kind   int    `json:"kind,omitempty"`
 	Stroke Stroke `json:"stroke,omitempty"`
-	Finish bool   `json:"finish,omitempty"`
 }

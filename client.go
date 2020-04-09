@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
-	"github.com/zeplar/quest/message"
 )
 
 type Client struct {
@@ -10,7 +9,6 @@ type Client struct {
 	hub      *Hub
 	socket   *websocket.Conn
 	outbound chan []byte
-	strokes  []message.Stroke
 }
 
 func newClient(hub *Hub, socket *websocket.Conn) *Client {

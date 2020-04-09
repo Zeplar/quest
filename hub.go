@@ -10,9 +10,9 @@ import (
 )
 
 type Hub struct {
-	clients    []*Client
-	register   chan *Client
-	unregister chan *Client
+	clients              []*Client
+	register, unregister chan *Client
+	strokes              []message.Stroke
 }
 
 func newHub() *Hub {
@@ -77,12 +77,13 @@ func (hub *Hub) onConnect(client *Client) {
 
 func (hub *Hub) initialize(client *Client) {
 	msg := message.Message{Kind: message.KindStroke}
-	for _, c := range hub.clients {
-		for i := range c.strokes {
-			msg.Stroke = c.strokes[i]
-			c.hub.send(msg, c)
-		}
+	for i := range hub.strokes {
+		msg.Stroke = hub.strokes[i]
+		hub.send(msg, client)
 	}
+	msg = message.Message{Kind: message.KindConnected}
+	msg.Stroke.OwnerID = len(hub.clients)
+	hub.send(msg, client)
 }
 
 func (hub *Hub) onDisconnect(client *Client) {
@@ -102,9 +103,16 @@ func (hub *Hub) onDisconnect(client *Client) {
 
 func (hub *Hub) onMessage(data []byte, client *Client) {
 	var msg message.Message
+	log.Println(string(data))
 	if err := json.Unmarshal(data, &msg); err != nil {
 		log.Println(err)
 		return
+	}
+	switch msg.Kind {
+	case message.KindStroke:
+		hub.strokes = append(hub.strokes, msg.Stroke)
+	case message.KindUndo:
+	case message.KindClear:
 	}
 	hub.broadcast(msg, client)
 }
