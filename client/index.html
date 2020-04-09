@@ -13,90 +13,92 @@
           width="480"
           height="360">
   </canvas>
+    <label for="favcolor">Select your favorite color:</label>
+    <input type="color" id="favcolor" name="favcolor" value="#ff0000">
   <div>
     <button id="clearButton">Clear</button>
   </div>
   <script>
     MESSAGE_CONNECTED = 1;
-    MESSAGE_USER_JOINED = 2;
-    MESSAGE_USER_LEFT = 3;
-    MESSAGE_STROKE = 4;
-    MESSAGE_CLEAR = 5;
+    MESSAGE_STROKE = 2;
+    MESSAGE_CLEAR = 3;
+    var strokes = [];
+    var strokeID = 0;
+    var shapeID = 0;
+    var strokeColor = 'red';
+    var ownerID = 0;
+    var currentStroke = new Stroke()
 
+    function Stroke() {
+        this.color = strokeColor;
+        this.points = [];
+        this.shapeID = shapeID++;
+        this.strokeID = strokeID++;
+        this.ownerID = ownerID;
+    }
     window.onload = function () {
         var canvas = document.getElementById('canvas');
         var ctx = canvas.getContext("2d");
         var isDrawing = false;
-        var strokeColor = '';
-        var strokes = [];
 
         var socket = new WebSocket("ws://192.168.1.126:3000/ws");
-        var otherColors = {};
-        var otherStrokes = {};
+
+        document.getElementById("favcolor").onchange = function() {
+            strokeColor = this.value;
+            currentStroke.color = strokeColor;
+            update();
+        }
 
         canvas.onmousedown = function (event) {
-        isDrawing = true;
-        addPoint(event.pageX - this.offsetLeft, event.pageY - this.offsetTop, true);
+            isDrawing = true;
+
+            addPoint(event.pageX - this.offsetLeft, event.pageY - this.offsetTop, true);
         };
 
         canvas.onmousemove = function (event) {
             if (isDrawing) {
                 addPoint(event.pageX - this.offsetLeft, event.pageY - this.offsetTop);
+                update();
             }
         };
 
         canvas.onmouseup = function () {
             isDrawing = false;
+            socket.send(JSON.stringify({ kind: MESSAGE_STROKE, stroke: currentStroke }));
+            currentStroke = new Stroke()
         };
 
         canvas.onmouseleave = function () {
             isDrawing = false;
         };
-
         function addPoint(x, y, newStroke) {
             var p = { x: x, y: y };
-            if (newStroke) {
-                strokes.push([p]);
-            } else {
-                strokes[strokes.length - 1].push(p);
-            }
-            socket.send(JSON.stringify({ kind: MESSAGE_STROKE, points: [p], finish: newStroke }));
-            update();
+            currentStroke.points.push(p);
         }
 
         function update() {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.lineJoin = 'round';
             ctx.lineWidth = 4;
-            // Draw mine
-            ctx.strokeStyle = strokeColor;
-            drawStrokes(strokes);
 
-            // Draw others
-            var userIds = Object.keys(otherColors);
-            for (var i = 0; i < userIds.length; i++) {
-                var userId = userIds[i];
-                ctx.strokeStyle = otherColors[userId];
-                drawStrokes(otherStrokes[userId]);
-            }
-        }
-        function drawStrokes(strokes) {
             for (var i = 0; i < strokes.length; i++) {
-                ctx.beginPath();
-                for (var j = 1; j < strokes[i].length; j++) {
-                var prev = strokes[i][j - 1];
-                var current = strokes[i][j];
-                ctx.moveTo(prev.x, prev.y);
-                ctx.lineTo(current.x, current.y);
-                }
-                ctx.closePath();
-                ctx.stroke();
+                drawStroke(strokes[i]);
             }
+            drawStroke(currentStroke);
+        }
+        function drawStroke(stroke) {
+            ctx.strokeStyle = stroke.color
+            ctx.moveTo(stroke.points[0], stroke.points[1])
+            ctx.beginPath();
+            for (var i = 1; i < stroke.points.length; i++) {
+                var current = stroke.points[i];
+                ctx.lineTo(current.x, current.y);
+            }
+            // ctx.closePath();
+            ctx.stroke();
         }
         document.getElementById('clearButton').onclick = function () {
-            strokes = [];
             socket.send(JSON.stringify({ kind: MESSAGE_CLEAR }));
-            update();
         };
 
         socket.onmessage = function (event) {
@@ -109,34 +111,12 @@
 
         function onMessage(message) {
             switch (message.kind) {
-                case MESSAGE_CONNECTED:
-                    strokeColor = message.color;
-                    for (var i = 0; i < message.users.length; i++) {
-                        var user = message.users[i];
-                        otherColors[user.id] = user.color;
-                        otherStrokes[user.id] = [];
-                    }
-                break;
-                case MESSAGE_USER_JOINED:
-                    otherColors[message.user.id] = message.user.color;
-                    otherStrokes[message.user.id] = [];
-                break;
-                case MESSAGE_USER_LEFT:
-                    delete otherColors[message.user.id];
-                    delete otherStrokes[message.user.id];
-                    update();
-                break;
                 case MESSAGE_STROKE:
-                    if (message.finish) {
-                        otherStrokes[message.user.id].push(message.points);
-                    } else {
-                        var strokes = otherStrokes[message.user.id];
-                        strokes[strokes.length - 1] = strokes[strokes.length - 1].concat(message.points);
-                    }
+                    strokes.push(message.stroke);
                     update();
                 break;
                 case MESSAGE_CLEAR:
-                    otherStrokes[message.user.id] = [];
+                    strokes = [];
                     update();
                 break;
             }

@@ -1,22 +1,21 @@
 package main
 
 import (
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/zeplar/quest/message"
 )
 
 type Client struct {
-	id       string
+	id       int
 	hub      *Hub
-	color    string
 	socket   *websocket.Conn
 	outbound chan []byte
+	strokes  []message.Stroke
 }
 
 func newClient(hub *Hub, socket *websocket.Conn) *Client {
 	return &Client{
-		id:       uuid.New().String(),
-		color:    "red",
+		id:       len(hub.clients),
 		hub:      hub,
 		socket:   socket,
 		outbound: make(chan []byte),

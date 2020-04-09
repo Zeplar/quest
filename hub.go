@@ -72,14 +72,17 @@ func (hub *Hub) broadcast(message interface{}, ignore *Client) {
 
 func (hub *Hub) onConnect(client *Client) {
 	log.Println("client connected: ", client.socket.RemoteAddr())
-	// Make list of all users
-	users := []message.User{}
+	hub.initialize(client)
+}
+
+func (hub *Hub) initialize(client *Client) {
+	msg := message.Message{Kind: message.KindStroke}
 	for _, c := range hub.clients {
-		users = append(users, message.User{ID: c.id, Color: c.color})
+		for i := range c.strokes {
+			msg.Stroke = c.strokes[i]
+			c.hub.send(msg, c)
+		}
 	}
-	// Notify user joined
-	hub.send(message.NewConnected(client.color, users), client)
-	hub.broadcast(message.NewUserJoined(client.id, client.color), client)
 }
 
 func (hub *Hub) onDisconnect(client *Client) {
@@ -94,11 +97,7 @@ func (hub *Hub) onDisconnect(client *Client) {
 		}
 	}
 	// Delete client from list
-	copy(hub.clients[i:], hub.clients[i+1:])
-	hub.clients[len(hub.clients)-1] = nil
-	hub.clients = hub.clients[:len(hub.clients)-1]
-	// Notify user left
-	hub.broadcast(message.NewUserLeft(client.id), nil)
+	hub.clients = append(hub.clients[:i], hub.clients[i+1:]...)
 }
 
 func (hub *Hub) onMessage(data []byte, client *Client) {
@@ -107,6 +106,5 @@ func (hub *Hub) onMessage(data []byte, client *Client) {
 		log.Println(err)
 		return
 	}
-	msg.User.ID = client.id
 	hub.broadcast(msg, client)
 }
