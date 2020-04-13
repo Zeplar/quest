@@ -30,6 +30,7 @@
     var shapeID = 0;
     var strokeColor = 'red';
     var ownerID = 0;
+    var selectedStroke = null;
     var currentStroke = new Stroke()
 
     function Stroke() {
@@ -82,26 +83,32 @@
         function update() {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 4;
 
             for (var i = 0; i < strokes.length; i++) {
-                drawStroke(strokes[i]);
+                drawStyledStroke(strokes[i], strokes[i].color, 4);
             }
             if (currentStroke != null) {
-                drawStroke(currentStroke);
+                drawStyledStroke(currentStroke, currentStroke.color, 4);
+            }
+            if (selectedStroke != null ) {
+                drawStyledStroke(selectedStroke, 'black', 8);
+                drawStyledStroke(selectedStroke, 'white', 6);
+                drawStyledStroke(selectedStroke, selectedStroke.color, 4);
             }
         }
-        function drawStroke(stroke) {
-            ctx.strokeStyle = stroke.color
+
+        function drawStyledStroke(stroke, color, width) {
+            ctx.strokeStyle = color
+            ctx.lineWidth = width;
             ctx.moveTo(stroke.points[0], stroke.points[1])
             ctx.beginPath();
             for (var i = 1; i < stroke.points.length; i++) {
                 var current = stroke.points[i];
                 ctx.lineTo(current.x, current.y);
             }
-            // ctx.closePath();
             ctx.stroke();
         }
+
         document.getElementById('clearButton').onclick = function () {
             socket.send(JSON.stringify({ kind: MESSAGE_CLEAR }));
         };
